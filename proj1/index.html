@@ -1,7 +1,208 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 1 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 284A Rasterizer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 284A: Computer Graphics and Imaging, Spring 2022</h1>
+<h1 align="middle">Project 1: Rasterizer</h1>
+<h2 align="middle">Aditya Ganapathi, Mark Presten</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>In this project we implemented a simple rasterizer using techniques such as triangle coloring, antialiasing through supersampling, coordinate transforms and texture mapping. We learned a number of important components required when building such a system such as proper memory management, speed/memory tradeoffs, and different interpolation and sampling techniques that present tradeoffs between speed/memory and final image quality.</p>
+
+<h2 align="middle">Section I: Rasterization</h2>
+
+<h3 align="middle">Part 1: Rasterizing single-color triangles</h3>
+
+
+<p>At a high level, our process of rasterizing triangles is comprised of three steps: 1) locating the four pixels that represent the bounding box around the given triangle, 2) cycling through each pixel within this bounding box and checking if the center of the pixel is contained within the given triangle, and 3) coloring the pixel if its center is contained within the triangle. We perform step 1 by first identifying the minimum and maximum x and y coordinates over all three triangle vertices. This information allows us to compute the coordinates of the four vertices of the bounding box as follows: (min_x, min_y) → top_left, (max_x, min_y) → top_right, (max_x, max_y) → bottom_right, (min_x, max_y) → bottom_left. At this stage, the vertices are represented in coordinate space, so we must apply the floor function to each coordinate in order to get the corresponding pixel vertex. Step 2 consists of cycling through each pixel within our computed bounding box and checking if the center of the pixel is contained within the triangle. The core of this step is writing the function that determines if the center of the pixel is within the triangle. To do this, we perform the three line test which is defined as follows: express each edge of the triangle as a line L_i(x, y) = -(x - X_i)dY_i + (y - Y_i)dX_i where dX_i = X_(i+1) - X_i and dY_i = Y_(i+1) - Y_i and where we traverse the vertices of the triangle in a clockwise fashion. Then, the center of a given pixel (u, v) is within the triangle or on an edge if L_i(u, v) >= 0 for all i. Finally, we simply color the pixel using the fill_pixel() method if the center is within the triangle or on an edge.</p>
+<p>Below is an image of test4.svg with the pixel inspector zoomed in on the top right portion of the red triangle. With no supersampling (i.e. supersampling rate of 1), we can note the presence of jaggies in the rendering which causes a rougher image.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task1.png" align="middle" width="400px"/>
+      </td>
+  </table>
+</div>
+
+
+
+
+<h3 align="middle">Part 2: Antialiasing triangles</h3>
+<p>We employ a supersampling algorithm to antialias our renderings (reduce the effect of jaggies) from Task 1. At its core, this algorithm maintains an imaginary (unrendered) higher resolution image in a sample buffer and performs all the rasterization steps from Task 1 on this higher resolution sample buffer instead of the final lower resolution frame buffer (the image that is actually displayed). After rasterizating the higher resolution sample buffer, we downsample the sample buffer to the same resolution as the frame buffer by averaging the RGB values of the subpixels and assigning the final RGB value to the corresponding pixel in the frame buffer. The sample buffer is represented by a dynamically allocated 2D array with size sample_size * size(frame_buffer) where the sample_size is the number of subpixels per pixel in the frame_buffer and size(frame_buffer) is the number of pixels (resolution) in the frame buffer. Supersampling is useful because it creates a smoother color gradient at higher frequency regions in an image (sharp edges or corners) through averaging RGB values.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task1.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sample rate is 1.</figcaption>
+      </td>
+      <td>
+        <img src="images/task2_4.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sample rate is 4.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/task2_9.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sample rate is 9.</figcaption>
+      </td>
+      <td>
+        <img src="images/task2_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">Sample rate is 16.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+
+<h3 align="middle">Part 3: Transforms</h3>
+<p>For implementation, we defined the three transformation matrices for rotation, translation, and scaling. As we are working in 2D space (the x,y coordinates of an image/object), the matrices will be size 3x3; the extra dimension is due to the definition of homogeneous coordinates. The 3x3 matrices can be broken down into 2 key parts: the first being the rotation, R,  which is defined in a 2x2 space in the top left and the second being translation which is defined as a 2x1 vector, p, that specifies the offset, located in the top right of the 3x3 matrix. For rotation, R takes on the form [cos(deg), -sin(deg); sin(deg), cos(deg)] and p is [0, 0].T. For translation, R is simply the identity matrix and p is [dx, dy] where dx and dy are the offsets. Finally, for scaling, R is a scaled version of the identity matrix [sx, 0; 0, sy] where sx and sy are scaling for x and y directions respectively, and p is [0, 0].T. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/robot.png" align="middle" width="400px"/>
+        <figcaption align="middle">Custom robot configuration.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Here you can see our robot! We wanted the robot to appear to have a dynamic stance, so we rotated all of his limbs individually. The bend in both the arms and the legs give the robot a sense of realism, as if his joints are actually in motion. If you notice, no two arms or legs are rotated in the same manner, again certifying a natural look. Furthermore, we made the robot’s biceps and his quadriceps wider by scaling in the appropriate direction. This was to add the perception of muscles. Due to the increase in the width of the robot’s quads, we lengthened the shins. Lastly, we gave the head a slight tilt, made it larger, and changed the color of some of the body parts. One important point to note is that with each additional rotation or scaling, the translation of the limb had to be adjusted as well in order for the robot to remain connected. If this was not done, some limbs appeared to be floating or disconnected. Also, it was interesting to play around with the order of these transformations, as they would affect the overall image!</p>
+
+
+<h2 align="middle">Section II: Sampling</h2>
+
+<h3 align="middle">Part 4: Barycentric coordinates</h3>
+<p>Barycentric coordinates are a concrete way for us to interpolate the pixel values for points within a defined triangle. This interpolation could be between colors, texture coordinate or values, normal vectors, or anything else we might need in computer graphics. The main idea is as follows: given the vertices of a triangle to be A, B, and C, we want to find the value of a point within the triangle (x,y) using the values of these vertices. To do so, we calculate a weighted combination of the values at each vertex and set (x,y) equal to this value! In barycentric coordinates, the weights are normalized to add to 1: [alpha + beta + gamma = 1]. To calculate each individual weight, we find the perpendicular distance between the point (x,y) and the line opposite each vertex. So, for example, for vertex A, the weight alpha is the perpendicular distance between (x,y) and the line segment BC. Once the weight is found for each vertex, we use these weights to calculate the weighted sum for the value at point (x,y)! Thus, V(x,y) = alpha * V(A) + beta * V(B) + gamma * V(C). In the case of this task, we used barycentric coordinates to interpolate colors that were assigned to each vertex of a triangle in order to create gradients across the triangle itself.</p>
+
+<p>An example can be found below, where the vertices of the triangle are assigned red, green, and blue. As you can see, the pixel values within the triangle form a gradient. Let’s say the top left vertex is vertex A. As you get closer to this vertex, alpha gets larger, thus the color in this case is closer to green. As you get further, alpha gets smaller and we see less green in those pixels or more red and blue, as dictated by the vertices C and B. You can find a color wheel that is calculated via barycentric coordinates below as well. This is svg/basisc/test7.svg that was provided with default viewing parameters. 
+</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/color_wheel.png" align="middle" width="400px"/>
+        <figcaption align="middle">Color wheel (test7.svg).</figcaption>
+      </td>
+      <td>
+        <img src="images/triangle.png" align="middle" width="400px"/>
+        <figcaption align="middle">Visual aid for Barycentric coordinates.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+<h3 align="middle">Part 5: "Pixel sampling" for texture mapping</h3>
+<p>Texture mapping is the process of applying patterns/textures from one image to another transformed image (affine transformation in the case of this task). When rasterizing triangles in the screen image, the first step is finding corresponding points in the texture image so that we can then compute the necessary colors to apply. Given the corresponding vertices between the two triangles in the screen image and texture image respectively, we can render each pixel within the screen image triangle by finding the corresponding pixel in the texture image triangle. Once we find the corresponding pixel in the texture image triangle, we can apply a pixel sampling method (either nearest or bilinear in this case) to compute the color that will be applied to the screen image pixel. Since we know our transformation between the texture image and the screen image is affine and we have access to corresponding triangle vertices during rasterization, we can apply a variation of interpolation using barycentric coordinates to find corresponding points within the triangles. More concretely, let (x0, y0), (x1, y1), and (x2, y2) be the coordinate vertices of a triangle we wish to rasterize in the image and let (u0, v0), (u1, v1), and (u2, v2) be the corresponding coordinate vertices of the triangle in the texture image. For some coordinate (x, y) in the screen image that lies within the triangle, the corresponding coordinate (u, v) in the texture image is equal to alpha*(u0, v0) + beta*(u1, v1) + gamma*(u2, v2) where alpha = (-(u - x1)*(y2 - y1) + (v - y1)*(x2 - x1))/(-(x0 - x1)*(y2 - y1) + (y0 - y1)*(x2 - x1)), beta = (-(u - x2)*(y0 - y2) + (v - y2)*(x0 - x2))/(-(x1 - x2)*(y0 - y2) + (y1 - y2)*(x0 - x2)), and gamma = 1 - alpha - beta. Now that we know the corresponding (u, v) coordinate in the texture image, we can use a pixel sampling method such as nearest or bilinear filtering to compute a color associated with this coordinate in the texture image. The nearest method simply takes the color of the pixel corresponding to the coordinate (u, v) where as bilinear filtering takes the average color of the four nearest pixels to (u, v) in the texture image.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/task5_nearest_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">P_NEAREST and sample rate is 1.</figcaption>
+      </td>
+      <td>
+        <img src="images/task5_bilinear_1.png" align="middle" width="400px"/>
+        <figcaption align="middle">P_LINEAR and sample rate is 1.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/task5_nearest_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">P_NEAREST and sample rate is 16.</figcaption>
+      </td>
+      <td>
+        <img src="images/task5_bilinear_16.png" align="middle" width="400px"/>
+        <figcaption align="middle">P_LINEAR and sample rate is 16.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+
+<h3 align="middle">Part 6: "Level sampling" with mipmaps for texture mapping</h3>
+<p>Level sampling is a way for us to reduce artifacts of aliasing within an image or scene. Aliasing occurs when the frequency of artifacts or features is greater than the frequency at which we can display them, otherwise known as the screen sampling rate. However, for many complex scenes, like ones that include depictions of depth, aliasing may only happen in certain parts of the image. Thus, it is not optimal for us to simply downsample the entire image in order to combat only certain scenarios of aliasing, as some originally clear features that did not display signs of aliasing now become blurred. So, instead, what if we look at individual samples, decide if they are showing artifacts of aliasing, and if so, downsample the texture that is assigned to them? This is the core idea of level sampling and allows us to remove aliasing artifacts without over-blurring the image. </p>
+
+<p> 
+In order to achieve level sampling, we must first define different Mipmap levels. The zero-th Mipmap level is simply the full resolution image. As we increase the level from here, we downsample the image and save it to that level. So, in the context of level sampling, for each sample (point or triangle), we choose the mipmap level that approximates the screen sampling rate and use that texture. To find the Mipmap level D, we essentially estimate the texture footprint correlated with the screen space we are looking at by using texture coordinates of neighboring screen samples. </p>
+
+<p>
+We implemented level sampling using barycentric coordinates. For point (x,y), we used barycentric coordinates to transfer its relative location within the current triangle of interest to (u, v) coordinates in texture space; i.e. we interpolated between normal vectors instead of colors as described in Task 4. We carried out the same procedure for points (x+1,y) and (x,y+1) to find (u_dx, v) and (u, v_dy) respectively. Using these three uv coordinates, we can calculate the difference vectors and accordingly find Mipmap level D (see lecture slide equations). </p>
+
+<p>
+Next, it comes down to what level sampling method we are using. For sampling method L_ZERO, we simply always sample from Mipmap level 0 (the full resolution image) and then use either sample_nearest or sample_bilinear for pixel samping as described in Task 5. For sampling method L_NEAREST, we round Mipmap level D to the nearest integer value and sample from that discrete Mipmap level. So, if the calculated Mipmap level is 3.3, we sample from Mipmap level 3. For sampling method L_LINEAR, we calculate Mipmap level D as a float. We then create a linear combination of the two colors sampled from the discrete levels surrounding this float value to end up with the final color for that pixel (x,y). For example, if Mipmap level is 3.3 as before, we sample color_bottom from Mipmap level 3 and color_top from Mipmap level 4. We then create the final color as a weighted sum through the equation color_final = (4 - 3.3) * color_bottom + (3.3 - 3) * color_top. </p>
+
+<p>
+Now, let’s discuss the tradeoffs between pixel sampling methods, level sampling methods, and the number of samples per pixel. For the number of samples per pixel, as we increase the number of samples, our memory usage increases as well alongside runtime because it is as if we are working in a higher resolution image. However, the more number of samples per pixel we use, the less aliasing artifacts we will see because we find the average value within a region using the higher resolution image. </p>
+
+<p>
+When comparing P_NEAREST to P_LINEAR we can see different tradeoffs. P_NEAREST uses less memory and is computationally faster as you simply round (u,v) to the nearest integer values and sample those from the texture space. However, this could lead to signs of aliasing as neighboring samples could be very different, leading to high frequency changes. On the other hand, P_LINEAR uses bilinear interpolation between the four surrounding pixels around (u,v) to calculate a weighted sum of values. This uses more memory and mis likely to take longer, but because it blurs/combines neighboring values, the frequency tends to be lower and has the potential to remove aliasing artifacts. </p>
+
+<p>
+When comparing L_ZERO, L_NEAREST, and L_LINEAR, we can find the following. L_ZERO is the most computationally efficient (fast and least memory usage) as we do not need to find and/or store different Mipmap levels. We only sample from the full resolution texture image. However, this leads to potentially many aliasing artifacts. L_NEAREST on the other hand requires us to calculate and store the different Mipmap levels and use these for sampling. This requires more memory and time, but reduces aliasing artifacts. Finally, L_LINEAR requires nearly the same amount of time and memory as L_NEAREST, but greatly reduces aliasing artifacts as we are now combining textures from different mipmap levels, which further decreases the frequency of the image. L_LINEAR should be quite similar in computation as it only requires sampling from one additional mipmap level per point (the level should already be calculated).</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/levelZero_pNearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_ZERO and P_NEAREST.</figcaption>
+      </td>
+      <td>
+        <img src="images/levelNearest_pNearest.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_NEAREST and P_NEAREST.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/levelZero_pLinear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_ZERO and P_LINEAR.</figcaption>
+      </td>
+      <td>
+        <img src="images/levelNearest_pLinear.png" align="middle" width="400px"/>
+        <figcaption align="middle">L_NEAREST and P_LINEAR.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+</body>
 </html>
