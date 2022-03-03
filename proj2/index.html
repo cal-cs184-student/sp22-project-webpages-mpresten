@@ -1,7 +1,307 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+  <style>
+    body {
+      padding: 100px;
+      width: 1000px;
+      margin: auto;
+      text-align: left;
+      font-weight: 300;
+      font-family: 'Open Sans', sans-serif;
+      color: #121212;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+  </style>
+  <title>CS 284 Mesh Editor</title>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+  <h1 align="middle">CS 284: Computer Graphics and Imaging, Spring 2022</h1>
+  <h1 align="middle">Project 2: Mesh Editor</h1>
+  <h2 align="middle">Mark Presten, Adi Ganapathi </h2>
+
+  <br><br>
+
+  <div>
+
+    <h2 align="middle">Overview</h2>
+    <p>In this project we explore topics in geometric modeling including Bezier curves, triangle mesh manipulation, mesh upsampling and more. </p>
+
+    <h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+    <h3 align="middle">Part 1: Bezier curves with 1D de Casteljau subdivision</h3>
+
+    <p> In this part of the project, we implemented de Casteljau's algorithm in order to evaluate Bezier curves. The main idea of de Cateljau's algorithm is to interpolate between the <b>n</b> given control points. Thus, for control point <b>p_i</b>, we uselinear interpolation (or a lerp) with parameter <b>t</b> to find the intermediate control point between <b>p_i</b> and <b>p_i+1</b>. After calculating all intermediate control points at this step, we are left with (n-1) intermediate control points.
+    </p>
+
+    <p> For this part, we simply want to evaluate one step of de Casteljau's algorithm. Once there are only 2 control points left, we return the final single point that lies on the Bezier curve. Implemenation was rather simple; we looped through the given control points and performed linear interpolation with parameter <b>t</b> between each subsquent points. We then returned a vector with said intermediate control points, which is of length (n-1).</p>
+
+    <div align="middle">
+      <table style="width=100%">
+        <tr>
+          <td>
+            <img src="images/b1.png" align="middle" width="400px" />
+            <figcaption align="middle">6 control points.</figcaption>
+          </td>
+          <td>
+            <img src="images/b2.png" align="middle" width="400px" />
+            <figcaption align="middle">5 intermediate control points. </figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/b3.png" align="middle" width="400px" />
+            <figcaption align="middle">4 more intermediate control points.</figcaption>
+          </td>
+          <td>
+            <img src="images/b4.png" align="middle" width="400px" />
+            <figcaption align="middle">3 more intermediate control points.</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/b5.png" align="middle" width="400px" />
+            <figcaption align="middle">2 more intermediate control points.</figcaption>
+          </td>
+          <td>
+            <img src="images/b6.png" align="middle" width="400px" />
+            <figcaption align="middle">Final intermediate control point.</figcaption>
+          </td>
+        </tr>
+        <br>
+        <tr>
+          <td>
+            <img src="images/b7.png" align="middle" width="400px" />
+            <figcaption align="middle">Bezier curve with final control point.</figcaption>
+          </td>
+          <td>
+            <img src="images/b8.png" align="middle" width="400px" />
+            <figcaption align="middle">Modified positions of original control points and parameter t.</figcaption>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+
+    <h3 align="middle">Part 2: Bezier surfaces with separable 1D de Casteljau subdivision</h3>
+
+    <p> In this part of the project, we implemented Bezier surfaces using seperable 1D de Casteljau subdivision. Unlike the prior problem, we are now working with surfaces instead of curves. Thus, we must carefully break apart the control points of these surfaces using de Casteljau subdivision in order to create the smooth Bezier surface. The main idea of this algorithm is break apart the surface into <b>n</b> individual Bezier curves using de Casteljau subdivision, and then use de Casteljau subdivision once again on these <b>n</b> generated Bezier curve points to arrive at the point on the Bezier surface.</p>
+
+    <p> For implementation, we broke apart the <b>(n x n)</b> control points grid that represents the surface. To do so, we first implemented the evaluateStep() function, which was almost identical to Part 1; the only difference is we are now working in 3 dimensions instead of 2. Next, in order to properly decipher the <b>(n x n)</b> control points grid, we wrote the function evaluate1D(). This function in essence calls evaluateStep() iteratively on a set of control points until there is only one control point returned - this point being the final control point that lies on the Bezier curve for that set of original control points. Finally, we implemented the main function evaluate(). This function first goes through each row of the <b>(n x n)</b> grid of control points and calls evaluate1D(), thus outputting a single point on the Bezier curve for each row. It is important to note that evaluate1D() also takes in linear interpolation parameter <b>u</b> that is used to find said intermediate control points and ultimately arrive at the final point. After generating a vector of <b>n</b> control points for each row, we then call evaluate1D() once again on this vector to get the final point on the Bezier surface. This final evaluate1D() call takes in linear interpolation parameter <b>v</b> to arrive at the final point. Thus, we have ultimately reduced the <b>(n x n)</b> grid of control points down to one point using seperable 1D de Casteljau subdivision.</p>
+
+    <p> Below you will find an image of the teapot.bez file that uses this algorithm described in this part for generation. </p>
+
+	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/p2.png" align="middle" width="400px"/>
+	      </td>
+	  </table>
+	</div>
+
+    <h2 align="middle">Section II: Sampling</h2>
+
+    <h3 align="middle">Part 3: Average normals for half-edge meshes</h3>
+
+    <p> In this part, we implemented area-weighted vertex normals. The reason for this implementation was so that we can shade our objects in a smooth manner through interpolating the normal vector across each triangle, which then allows for the computation of the full shading model across each pixel (Phong Shading). In opposition, flat shading assumes each triangle face is flat and shades the entire plane in the same manner, which inherently produces non-smooth surfaces. </p>
+
+    <p> We implemented area-weighted vertex normals as follows. First, we cycled through all faces incident to the given vertex. To do so, we used the Half-edge data structure. Starting with the Half-edge assigned to the given vertex, we found its twin, which points in the opposite direction alongside the same edge, and then subsequently found the twin's next Half-edge. The twin's next Half-edge is attached the next edge stemming out of the given vertex (see diagram below) and this Half-edge points to the next face! This iteration stops once the twin's next Half-edge points to the same object as the original Half-edge assigned to the given vertex, thus meaning we have visited all the faces surrounding the vertex. </p>
+
+	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/normals.jpg" align="middle" width="400px"/>
+	      </td>
+	  </table>
+	</div>
+
+    <p> At each face, we calculated the area-weighted normal as follows. Given each vertex has a position, we can use the vertices on a face to generate two vectors. In the image below you can see an example. For the triangle made up of vertices v0, v1, and v2, we can use the vertices positions to create vectors Vector1, which goes from v0 to v1, and Vector2, which goes from v0 to v2. By taking the cross product of these two vectors, we get the normal vector whose magnitude takes into account the area of the face itself. We summed all of these normal vectors that surround a given vertex together and then normalized before returning the final area-weighted normal vector for the given vertex.</p>
+
+    <p> Below you will find the flat shaded teapot and the teapot shaded using area-weighted normals. We turned the grid off for visual purposes.</p>
+
+	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/flat.png" align="middle" width="400px"/>
+	        <figcaption align="middle">Flat Shading.</figcaption>
+	      </td>
+	      <td>
+	        <img src="images/smooth.png" align="middle" width="400px"/>
+	        <figcaption align="middle">Smooth Shading using Area-Weighted Normals.</figcaption>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+
+
+    <h3 align="middle">Part 4: Half-edge flip</h3>
+
+    <p> In order to carry out a Half-edge flip, we must first carefully map out where each aspect of the Half-edge data structure points to. Each Half-edge includes pointers to the next half-edge, the twin half-edge, the vertex that it stems from, the edge it lies on, and the face that it belongs to. Furthermore, the vertex, edge, and face also have pointers that point to an arbitrary half-edge that is incident to them. Given the half-edge flip operation does not create any neew faces, half-edges, vertices, or edges, the goal here is simply to re-assign all pointers.</p>
+
+   	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/flip.jpg" align="middle" width="400px"/>
+	      </td>
+	  </table>
+	</div>
+
+    <p> In the figure above, you will see the diagram we used to re-assign all pointers. First, we generated and asigned all half-edges, vertices, edges, and faces based off of the "Before" diagram using the given edge, e0. The reason we can do this is because e0 has a pointer to one of its half-edges, which we then can use to find all other parts. Next, for each vertex, edge, and face, we assign to the appropriate half-edge based on the "After" diagram. Some pointers do not change, but for debugging purposes, we re-assigned all pointers to what half-edge they should point to after the flip. Finally, we re-assigned the pointers of each half-edge using the setNeighbors() function; i.e. we assigned pointers to the next half-edge, twin half-edge, vertex, edge, and face that that correspond to the "After" diagram. Once all these pointers are re-assigned, we can return the initial edge, e0. </p>
+
+    <p> Once we drew out the diagram, we did not have any particular issues with debugging. The most difficult part was just keeping track of variables!</p>
+
+    <p> Below you will find the teapot with some random edge flips.</p>
+
+	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/flip2.jpg" align="middle" width="400px"/>
+	        <figcaption align="middle">Flipped 8 edges on the face of the teapot. Edges that are flipped are highlighted. </figcaption>
+	      </td>
+	      <td>
+	        <img src="images/flip1.jpg" align="middle" width="400px"/>
+	        <figcaption align="middle">Flipped an entire circular ring of edges on the top of the teapot. Edges that are flipped are highlighted. </figcaption>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+
+
+    <h3 align="middle">Part 5: Half-edge split</h3>
+
+    <p> Similar to the last problem, we will primarily be working within the half-edge data structure for the half-edge split operation. However, unlike Part 4, we will be creating new mesh elements and not just re-assigning pointers; namely, we will be creating 6 new half-edges, 3 new edges, 2 new faces, and 1 new vertex. </p>
+
+    <div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/split.jpg" align="middle" width="400px"/>
+	      </td>
+	  </table>
+	</div>
+
+    <p> Above you will find a diagram with "Before" and "After" the half-edge split operation. First, using the given edge e0 and the "Before" diagram, we generate and assign all half-edges (h0-h9), all vertices (v0-v3), all edges (e0-e4), and all faces (f0-f1). Next, we create the 6 new half-edges (h10-h15), the new vertex (v4), the new edges (e5-e7), and the new faces (f2-f3); these new alements are all highlighted in the "After" diagram. For each of these new mesh elements, we asign pointers to their appropriate half-edges based on said "After" diagram. Furthermore, for the new vertex v4, we assign its position to be along the edge e0, halfway between vertex v1 and vertex v0. Subsequently, we then go through all orginal mesh elements that include vertices, edges, and faces and re-assign their pointers to half-edges based on the "After" diagram. The final step, like Part 4, is to use the setNeighbors() function for each half-edge (h0-h15), to assign the appropriate pointers to the next half-edge, twin half-edge, vertex, edge, and face based on the "After" diagram. In the end, we return the new vertex, v4. </p>
+
+    <p> Given our findings from Part 4, we did not have much trouble debugging. Again, the major struggle was keeping track of all the pointers and variables. After double checking all variables were assigned correctly, our implementation worked well! </p>
+
+    <p> Below you will find some examples of the half-edge split operation, alongisde the half-edge flip operation. </p>
+
+	<div align="middle">
+	  <table style="width=100%">
+	    <tr>
+	      <td>
+	        <img src="images/split1.png" align="middle" width="400px"/>
+	        <figcaption align="middle">Randomly split edges along the main face of the teapot. Splits were done on top of one another, and in different manners, to showcase functionality. </figcaption>
+	      </td>
+	      <td>
+	        <img src="images/split2.png" align="middle" width="400px"/>
+	        <figcaption align="middle">Here, we first flipped some of the vertical edges on the face of the teapot. This caused an indentation as it connected two (2) points along the teapot's surface. We then split (and flipped) some edges of the original flipped edge to further breakdown this identation. </figcaption>
+	      </td>
+	    </tr>
+	  </table>
+	</div>
+
+    <h3 align="middle">Part 6: Loop subdivision for mesh upsampling</h3>
+
+<p>Loop subdivision for mesh upsampling is primarily composed of 3 steps: 1) Splitting every edge in the mesh according to the edge split algorithm from Part 5, 2) Flipping any new edge that results from the edge splitting operations if and only if the new edge connects a new vertex (spawned from edge splitting) and and old vertex (from the original mesh), and 3) updating the positions of both new and old vertices using a weighting algorithm of your choice. For this part, we followed the recommended implementation from the doc which comprised of first computing the new vertex position for both old and new vertices, then performing edge splitting and flipping, and finally updating the positions of all vertices with their respective precomputed new positions. New vertices are updated as: (3/8)*(A+B) + (1/8)(C+D), where as old vertices are updated as follows: (1 - n * u) * original_position_sum + u * original_neighbor_position_sum where n is the vertex degree, u is the constant shown in the figure below. </p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/weights.png" align="middle" width="400px"/>
+        <figcaption align="middle"></figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+<p> From an implementation standpoint, old vertex updated positions are stored in the original vertex’s “newPosition” member variable where as new vertex updated positions are stored in their corresponding edge’s “newPosition” member variable as there is a 1:1 correspondence between new vertices and the edge upon which they were created.</p>
+
+<p>After the updated positions for both old and new vertices are computed and stored, we perform the split and flipping operations respectively as described above. Some important implementation details here: </p>
+
+<ul>
+  <li>All new vertices must be marked as new when the edgeSplit function is called  (both for subsequent logic in knowing which edges to flip and in order to know where to store the updated position)</li>
+  <li>All new edges must be marked as new. Even though 3 new edges are created in edgeSplit, one edge is the other half of the original edge so this must be marked as an old edge to prevent flipping it! However, since this may create an infinite loop when cycling through edges to split (this is because the condition checks to see if an edge is old in order to split it but we are constantly adding new old edges), we must use an equivalent condition of checking whether or not an edge is old by checking if both vertices attached to it are old instead of checkin the “isNew” member variable.</li>
+  <li>Flip all new edges that connect an old vertex with a new vertex. If conditions and markings aren’t followed as above, this step may result in more edge flips than desired.</li>
+</ul>
+
+<p>Finally, we update all vertex positions according to our precomputed new locations. It is also important to set the “isNew” member variable for all vertices and edges to false here to enable proper upsampling at the next iteration. </p>
+
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/jaggycorner.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Sharp corner 1 with no preprocessing after upsampling.</figcaption>
+      </td>
+      <td>
+        <img src="images/smoothcorner.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Sharp corner with preprocessing prior to upsampling.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/cube1.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Default cube.</figcaption>
+      </td>
+      <td>
+        <img src="images/l1.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Upsampled once.</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/l2.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Upsampled twice. </figcaption>
+      </td>
+      <td>
+        <img src="images/l3.png" align="middle" width="400px" height="400px"/>
+        <figcaption align="middle">Upsampled thrice.</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/splitcubestraighton.png" align="middle" width="400px"/>
+        <figcaption align="middle"> Preprocessed then upsampled. </figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+</body>
+
 </html>
